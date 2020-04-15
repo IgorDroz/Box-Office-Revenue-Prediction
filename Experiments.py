@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 def LGMB_model(train_features,train_labels,valid_features,valid_labels):
-	model = lgb.LGBMRegressor(n_estimators=200, objective='regression', learning_rate=0.05,
-							  reg_alpha=0.1, reg_lambda=0.1, random_state=7, importance_type='gain')
+	model = lgb.LGBMRegressor(n_estimators=2000, objective='regression', learning_rate=0.01, random_state=7)
 
 	# Train the model
-	model.fit(train_features, train_labels, eval_metric='rmse',
+	model.fit(train_features, train_labels, eval_metric='rmse',early_stopping_rounds=50,
 			  eval_set=[(valid_features, valid_labels), (train_features, train_labels)],
 			  eval_names=['valid', 'train'], categorical_feature='auto')
 
@@ -65,20 +64,15 @@ def experiment_1(data_orig,target,model_name):
 
 
 		for df in [train_features,valid_features]:
-			# date related features
-			df['release_date'] = pd.to_datetime(df['release_date'])
-			df['release_year'] = df['release_date'].dt.year
-			df['release_month'] = df['release_date'].dt.month
-			df['passed_years'] = date.today().year - df['release_year']
-			df['release_season'] = pd.cut(df['release_month'], bins=[0, 3, 6, 9, 12],
-										  labels=["Winter", "Spring", "Summer", "Autumn"]).astype('category')
 			df.drop(['release_date', 'release_month','revenue','id'], axis=1,inplace=True)
 
 		cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id','tagline','got_img',
-					'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']\
+					'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors','release_season']\
 				   +[col for col in train_features.columns if 'genre_' in col]
 		numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','crew_involved',
-						  'actors_involved','production_companies_involved','avg_salary']
+						  'actors_involved','production_companies_involved','avg_salary', 'release_year',
+						  'vote_count_avg', 'passed_years']
+
 		train_features = shrink_memory_consumption(train_features,cat_vars,numerical_vars)
 		valid_features = shrink_memory_consumption(valid_features,cat_vars,numerical_vars)
 		if isinstance(features_imp,str):
@@ -117,22 +111,15 @@ def experiment_2(df,target):
 		if abs(df[column].skew()) > 1.0:
 			df[column] = df[column].apply(lambda x: np.log10(x + 1))
 
-
-	# date related features
-	df['release_date'] = pd.to_datetime(df['release_date'])
-	df['release_year'] = df['release_date'].dt.year
-	df['release_month'] = df['release_date'].dt.month
-	df['passed_years'] = date.today().year - df['release_year']
-	df['release_season'] = pd.cut(df['release_month'], bins=[0, 3, 6, 9, 12],
-								  labels=["Winter", "Spring", "Summer", "Autumn"]).astype('category')
-
 	labels = df[target]
 	df.drop(['release_date', 'release_month',target,'id'], axis=1,inplace=True)
 
-	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id',
-				'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']\
-			   +[col for col in df.columns if 'genre_' in col]
-	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','avg_salary']
+	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id', 'tagline',
+				'got_img',
+				'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors', 'release_season']
+	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count', 'crew_involved',
+					  'actors_involved', 'production_companies_involved', 'avg_salary', 'release_year',
+					  'vote_count_avg', 'passed_years']
 	features = shrink_memory_consumption(df,cat_vars,numerical_vars)
 	if isinstance(features_imp,str):
 		features_imp = np.zeros((features.shape[1],))
@@ -169,7 +156,7 @@ def experiment_2(df,target):
 	from scipy.stats import randint as sp_randint
 	from scipy.stats import uniform as sp_uniform
 	param_test = {'num_leaves': sp_randint(6, 50),
-				  'min_child_samples': sp_randint(100, 500),
+				  'min_child_samples': sp_randint(0, 500),
 				  'min_child_weight': [1e-5, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4],
 				  'subsample': sp_uniform(loc=0.2, scale=0.8),
 				  'colsample_bytree': sp_uniform(loc=0.4, scale=0.6),
@@ -341,12 +328,12 @@ if __name__=='__main__':
 	df = preprocess(raw_data)
 	# df = pd.read_csv('./data/clean_data.csv')
 
-	# models = ['LGBM','CATBOOST']
-	# final_results =[]
-	# for model in models:
-	# 	result = experiment_1(df,'revenue',model)
-	# 	# result = experiment_3(df, 'revenue',model)
-	# 	final_results.append(result)
-	# print(final_results)
+	models = ['LGBM','CATBOOST']
+	final_results =[]
+	for model in models:
+		result = experiment_1(df,'revenue',model)
+		# result = experiment_3(df, 'revenue',model)
+		final_results.append(result)
+	print(final_results)
 
-	experiment_2(df,'revenue')
+	# experiment_2(df,'revenue')

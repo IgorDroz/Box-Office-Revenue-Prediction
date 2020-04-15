@@ -50,7 +50,7 @@ def shrink_memory_consumption(data,cat_vals=None,numerical_vals=None):
 
 	return data
 
-def delete_highly_target_correlated_features(df,target,threshold=0.9):
+def delete_highly_target_correlated_features(df,target,threshold=0.8):
 	corrs = df.corr()
 	corrs = corrs.sort_values(target, ascending=False)
 	# Empty dictionary to hold correlated variables
@@ -459,6 +459,19 @@ def preprocess(data,ohe=False, save=True):
 
 	data.drop(['crew'],axis=1,inplace=True)
 
+	data['release_date'] = pd.to_datetime(data['release_date'])
+	data['release_year'] = data['release_date'].dt.year
+	data['release_month'] = data['release_date'].dt.month
+	data['passed_years'] = date.today().year - data['release_year']
+	data['release_season'] = pd.cut(data['release_month'], bins=[0, 3, 6, 9, 12],
+									labels=["Winter", "Spring", "Summer", "Autumn"]).astype('category')
+	data['vote_count_avg'] = data['vote_count']/(np.log2(data['passed_years']+1)+1)
+	secret_weapon = pd.read_csv('./data/inflation_data.csv')
+	secret_weapon = secret_weapon.set_index('year')
+	secret_weapon['amount'] = secret_weapon['amount'].max()/secret_weapon['amount']
+	for idx in data.index:
+		data['budget'].loc[idx] = data['budget'].loc[idx]* secret_weapon.loc[data['release_year'].loc[idx], 'amount']
+
 	data['avg_salary']=data['budget']/(data['crew_involved']+data['actors_involved'])
 
 	if save:
@@ -489,18 +502,13 @@ def build_statistics_features(df,group_by_variables,original_features,exclude=No
 
 def build_features(df,group_by_x=None):
 	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id', 'tagline',
-				'got_img', 'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']
-	numerical_vars = ['budget', 'popularity', 'runtime','revenue', 'vote_average', 'vote_count', 'crew_involved',
-					  'actors_involved', 'production_companies_involved','avg_salary']
+				'got_img',
+				'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors', 'release_season']
+	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count', 'crew_involved',
+					  'actors_involved', 'production_companies_involved', 'avg_salary', 'release_year',
+					  'vote_count_avg', 'passed_years']
 
 	df = shrink_memory_consumption(df,cat_vars,numerical_vars)
-
-	# date related features
-	df['release_date'] = pd.to_datetime(df['release_date'])
-	df['release_year'] = df['release_date'].dt.year
-	df['release_month'] = df['release_date'].dt.month
-	df['passed_years'] = date.today().year - df['release_year']
-	df['release_season'] = pd.cut(df['release_month'], bins=[0, 3, 6, 9, 12], labels=["Winter", "Spring", "Summer","Autumn"]).astype('category')
 	df.drop(['release_date','release_month'], axis=1)
 
 	# build features out of statistics on numerical variable
@@ -519,17 +527,17 @@ def build_features(df,group_by_x=None):
 if __name__=='__main__':
 	# raw_data = pd.read_csv('data/train.tsv', sep="\t")
 	# df = preprocess(raw_data)
-	df = pd.read_csv('./data/clean_data.csv')
-	df_built = build_features(df)
+	data = pd.read_csv('./data/clean_data.csv')
+	df_built = build_features(data)
 	rich_dfs = [[None,'genres'],[None,'top_3_actors']]
 	for rich_df in rich_dfs:
-		rich_df[0] = enrich_dataset_by_dividing_x(df,rich_df[1])
+		rich_df[0] = enrich_dataset_by_dividing_x(data, rich_df[1])
 		rich_df[0].to_csv('./data/rich_df_'+rich_df[1]+'.csv',index=False,header=True)
 		rich_df[0] = build_features(rich_df[0],group_by_x=rich_df[1])
 		rich_df[0] = rich_df[0].groupby('id').agg(['mean'])
 		relevant_columns = [idx for idx,col in enumerate(rich_df[0].columns) if rich_df[1] in col[0]]
 		rich_df[0] = rich_df[0].iloc[:,relevant_columns]
 		df_built = df_built.merge(rich_df[0], on='id', how='left')
-	df,cols_to_remove = delete_highly_target_correlated_features(df_built,'revenue')
-	print(df.shape)
+	data, cols_to_remove = delete_highly_target_correlated_features(df_built, 'revenue')
+	print(data.shape)
 	_=0
