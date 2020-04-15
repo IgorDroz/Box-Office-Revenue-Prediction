@@ -441,21 +441,25 @@ def preprocess(data,ohe=False, save=True):
 	data['crew_involved'] = 1
 	for idx,cell in enumerate(data['crew']):
 		cell = parser(cell)
-		data['crew_involved'].loc[idx] = len(cell)
+		# data['crew_involved'].loc[idx] = len(cell)
+		crew_set =set()
 		producer=0
 		director=0
 		for element in cell:
 			if producer and director:
-				break
+				if director<1 and 'director' in element['job'].lower():
+					data['director_id'].loc[idx] = str(element['id'])
+					director+=1
 
-			if director<1 and 'director' in element['job'].lower():
-				data['director_id'].loc[idx] = str(element['id'])
-				director+=1
+				if producer<1 and 'producer' in element['job'].lower():
+					data['producer_id'].loc[idx] = str(element['id'])
+					producer+=1
+			crew_set.add(str(element['id']))
+		data['crew_involved'].loc[idx] = len(crew_set)
 
-			if producer<1 and 'producer' in element['job'].lower():
-				data['producer_id'].loc[idx] = str(element['id'])
-				producer+=1
 	data.drop(['crew'],axis=1,inplace=True)
+
+	data['avg_salary']=data['budget']/(data['crew_involved']+data['actors_involved'])
 
 	if save:
 		data.to_csv('./data/clean_data.csv',header=True,index=False)
@@ -487,7 +491,7 @@ def build_features(df,group_by_x=None):
 	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id', 'tagline',
 				'got_img', 'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']
 	numerical_vars = ['budget', 'popularity', 'runtime','revenue', 'vote_average', 'vote_count', 'crew_involved',
-					  'actors_involved', 'production_companies_involved']
+					  'actors_involved', 'production_companies_involved','avg_salary']
 
 	df = shrink_memory_consumption(df,cat_vars,numerical_vars)
 
