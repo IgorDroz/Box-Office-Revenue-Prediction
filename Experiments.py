@@ -1,9 +1,10 @@
 from Utils import *
 import lightgbm as lgb
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV,RandomizedSearchCV,train_test_split
 from catboost import CatBoostRegressor
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 def LGMB_model(train_features,train_labels,valid_features,valid_labels):
 	model = lgb.LGBMRegressor(n_estimators=200, objective='regression', learning_rate=0.05,
@@ -42,7 +43,7 @@ def CatBoost_model(train_features,train_labels,valid_features,valid_labels):
 	# Record the best score
 	return model,model.best_score_['validation_0']['RMSE'],model.best_score_['validation_1']['RMSE']
 
-def experiment_1(data,target,model_name):
+def experiment_1(data_orig,target,model_name):
 	# Create the kfold object
 	number_of_folds = 7
 	k_fold = KFold(n_splits=number_of_folds, shuffle=True, random_state=50)
@@ -50,6 +51,8 @@ def experiment_1(data,target,model_name):
 	train_scores = []
 	predictors = []
 	features_imp = 'empty'
+	model=None
+	data = deepcopy(data_orig)
 
 	for column in list(data.select_dtypes('number').columns):
 		if abs(data[column].skew()) > 1.0:
@@ -74,7 +77,8 @@ def experiment_1(data,target,model_name):
 		cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id','tagline','got_img',
 					'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']\
 				   +[col for col in train_features.columns if 'genre_' in col]
-		numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','crew_involved','actors_involved','production_companies_involved']
+		numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','crew_involved',
+						  'actors_involved','production_companies_involved','avg_salary']
 		train_features = shrink_memory_consumption(train_features,cat_vars,numerical_vars)
 		valid_features = shrink_memory_consumption(valid_features,cat_vars,numerical_vars)
 		if isinstance(features_imp,str):
@@ -128,31 +132,60 @@ def experiment_2(df,target):
 	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id',
 				'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']\
 			   +[col for col in df.columns if 'genre_' in col]
-	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count']
+	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','avg_salary']
 	features = shrink_memory_consumption(df,cat_vars,numerical_vars)
 	if isinstance(features_imp,str):
 		features_imp = np.zeros((features.shape[1],))
 
+	features,valid_features,labels,valid_labels = train_test_split(features,labels,test_size=0.15,random_state=314)
 
-	model = CatBoostRegressor()
-	parameters = {'depth': [8, 10, 12],
-					'learning_rate': [0.01, 0.05, 0.005],
-					'iterations': [ 150, 100, 200],
-					'l2_leaf_reg' : [0.1],
-					'loss_function' : ['RMSE'],
-					'eval_metric' : ['RMSE'],
-					'cat_features' : [features.select_dtypes('category').columns],
-					'random_strength' : [0.001],
-					'bootstrap_type' : ['Bayesian'],
-					'bagging_temperature' : [1],
-					'leaf_estimation_method' : ['Newton'],
-					'leaf_estimation_iterations' : [2],
-					'boosting_type' : ['Ordered'],
-					'feature_border_type' : ['Median'],
-					'random_seed' : [7]
-				  }
-	grid = GridSearchCV(estimator=model, param_grid=parameters, cv=7, n_jobs=-1)
-	grid.fit(features,labels)
+	#
+	# model = CatBoostRegressor()
+	# parameters = {'depth': [8, 10, 12],
+	# 				'learning_rate': [0.01, 0.05, 0.005],
+	# 				'iterations': [ 150, 100, 200],
+	# 				'l2_leaf_reg' : [0.1],
+	# 				'loss_function' : ['RMSE'],
+	# 				'eval_metric' : ['RMSE'],
+	# 				'cat_features' : [features.select_dtypes('category').columns],
+	# 				'random_strength' : [0.001],
+	# 				'bootstrap_type' : ['Bayesian'],
+	# 				'bagging_temperature' : [1],
+	# 				'leaf_estimation_method' : ['Newton'],
+	# 				'leaf_estimation_iterations' : [2],
+	# 				'boosting_type' : ['Ordered'],
+	# 				'feature_border_type' : ['Median'],
+	# 				'random_seed' : [7]
+	# 			  }
+	# grid = GridSearchCV(estimator=model, param_grid=parameters, cv=7, n_jobs=-1)
+
+	fit_params = {"early_stopping_rounds": 30,
+				  "eval_metric": 'rmse',
+				  "eval_set": [(valid_features, valid_labels)],
+				  'eval_names': ['valid'],
+				  # 'callbacks': [lgb.reset_parameter(learning_rate=learning_rate_010_decay_power_099)],
+				  'categorical_feature': 'auto'}
+
+	from scipy.stats import randint as sp_randint
+	from scipy.stats import uniform as sp_uniform
+	param_test = {'num_leaves': sp_randint(6, 50),
+				  'min_child_samples': sp_randint(100, 500),
+				  'min_child_weight': [1e-5, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4],
+				  'subsample': sp_uniform(loc=0.2, scale=0.8),
+				  'colsample_bytree': sp_uniform(loc=0.4, scale=0.6),
+				  'reg_alpha': [0, 1e-1, 1, 2, 5, 7, 10],
+				  'reg_lambda': [0, 1e-1, 1, 5, 10, 20]}
+
+	clf = lgb.LGBMRegressor(max_depth=-1, random_state=314, silent=True,objective='regression', n_jobs=4, n_estimators=1000)
+	grid = RandomizedSearchCV(
+		estimator=clf, param_distributions=param_test,
+		scoring='neg_root_mean_squared_error',
+		cv=5,
+		refit=True,
+		random_state=314,
+		verbose=True)
+
+	grid.fit(features,labels,**fit_params)
 
 	# Results from Grid Search
 	print("\n========================================================")
@@ -176,12 +209,13 @@ def experiment_2(df,target):
 	plot_df = pd.DataFrame([[i[0], i[1]] for i in zip(features_imp, predictors)], columns=['importance', 'feature'])
 	plot_feature_importances(plot_df)
 
-def experiment_3(df,target,model_name,plot=False):
+def experiment_3(df_orig,target,model_name,plot=False):
 	# Create the kfold object
 	number_of_folds = 7
 	k_fold = KFold(n_splits=number_of_folds, shuffle=True, random_state=50)
 	valid_scores = []
 	train_scores = []
+	df = deepcopy(df_orig)
 	predictors = []
 	features_imp = 'empty'
 
@@ -307,12 +341,12 @@ if __name__=='__main__':
 	df = preprocess(raw_data)
 	# df = pd.read_csv('./data/clean_data.csv')
 
-	models = ['LGBM','CATBOOST']
-	final_results =[]
-	for model in models:
-		# result = experiment_1(df,'revenue',model)
-		result = experiment_3(df, 'revenue',model)
-		final_results.append(result)
-	print(final_results)
+	# models = ['LGBM','CATBOOST']
+	# final_results =[]
+	# for model in models:
+	# 	result = experiment_1(df,'revenue',model)
+	# 	# result = experiment_3(df, 'revenue',model)
+	# 	final_results.append(result)
+	# print(final_results)
 
-	# experiment_2(df,'revenue')
+	experiment_2(df,'revenue')
