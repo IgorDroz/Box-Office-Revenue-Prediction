@@ -1,0 +1,17 @@
+genre,number_of_movies,budget,total_revenue,best_seller
+Adventure," 2,883"," $71,487,306"," $182,762,827,224", Star Wars Ep. VII: The Force Awakens
+Action," 3,003"," $62,107,629"," $157,754,838,376", Avengers: Endgame
+Drama," 11,840"," $19,654,190"," $107,641,726,471", Bohemian Rhapsody
+Comedy," 6,203"," $22,206,549"," $91,315,997,522", The Hangover Part II
+Thriller/Suspense," 3,179"," $27,955,819"," $52,787,735,629", Titanic
+Horror," 2,655"," $14,500,554"," $29,147,507,032", It
+Romantic Comedy," 1,486"," $24,568,846"," $25,589,367,145", Mei Ren Yu
+Musical, 456," $31,089,388"," $14,145,264,817", Frozen
+Documentary," 5,325"," $3,157,930"," $4,949,732,135", Michael Jackson's This Is It
+Western, 323," $27,185,825"," $3,903,852,225", Django Unchained
+Black Comedy, 342," $14,507,474"," $3,768,139,682", The Wolf of Wall Street
+Concert/Performance, 767," $9,365,385"," $938,742,849", Justin Bieber: Never Say Never
+Multiple Genres, 192," $1,660,000"," $284,727,175", Andhadhun
+Reality, 7, $0," $68,754,726", Benpao Ba! Xiongdi
+Instructional, 19, $0, $0,
+Educational, 8, $0, $0,

@@ -1,0 +1,114 @@
+year,stats,number_of_movies,budget,total_revenue,best_seller
+2027,, 1,,,
+2026,, 1,,,
+2025,, 1,,,
+2024,, 1,,,
+2023,, 14,,,
+2022,, 53," $40,000,000",,
+2021,, 92," $43,100,000",,
+2020,Annual Stats," 1,085"," $55,037,241"," $2,396,067,505", Bad Boys For Life
+2019,Annual Stats," 3,968"," $50,420,755"," $38,369,937,081", Avengers: Endgame
+2018,Annual Stats," 3,890"," $42,283,886"," $38,224,389,896", Avengers: Infinity War
+2017,Annual Stats," 3,610"," $46,864,768"," $37,914,237,954", Star Wars Ep. VIII: The Last Jedi
+2016,Annual Stats," 3,507"," $38,581,077"," $36,931,791,426", Captain America: Civil War
+2015,Annual Stats," 3,002"," $26,508,396"," $36,024,354,875", Star Wars Ep. VII: The Force Awakens
+2014,Annual Stats," 1,518"," $30,876,642"," $29,965,176,445", Transformers: Age of Extinction
+2013,Annual Stats," 1,415"," $37,562,530"," $29,724,418,383", Frozen
+2012,Annual Stats," 1,493"," $33,218,989"," $31,578,572,542", The Avengers
+2011,Annual Stats," 1,286"," $35,633,529"," $27,427,353,731", Harry Potter and the Deathly Hallows: Part II
+2010,Annual Stats," 1,250"," $33,408,109"," $25,406,667,206", Toy Story 3
+2009,Annual Stats," 1,208"," $34,755,837"," $25,903,410,878", Avatar
+2008,Annual Stats," 1,115"," $31,504,670"," $24,247,421,912", The Dark Knight
+2007,Annual Stats," 1,032"," $32,714,960"," $23,287,660,964", Pirates of the Caribbean: At World’s End
+2006,Annual Stats, 831," $28,927,293"," $20,076,206,676", Pirates of the Caribbean: Dead Man’s Chest
+2005,Annual Stats, 613," $33,560,559"," $18,389,256,134", Harry Potter and the Goblet of Fire
+2004,Annual Stats, 620," $35,399,522"," $18,995,832,106", Shrek 2
+2003,Annual Stats, 548," $32,001,468"," $17,791,623,451", The Lord of the Rings: The Return of the King
+2002,Annual Stats, 496," $31,185,989"," $17,003,028,996", The Lord of the Rings: The Two Towers
+2001,Annual Stats, 489," $32,388,846"," $15,046,811,814", Harry Potter and the Sorcerer’s Stone
+2000,Annual Stats, 538," $31,167,926"," $13,324,011,694", Mission: Impossible 2
+1999,Annual Stats, 472," $30,304,559"," $13,535,358,060", Star Wars Ep. I: The Phantom Menace
+1998,Annual Stats, 411," $29,940,039"," $11,622,981,341", Armageddon
+1997,Annual Stats, 358," $40,970,168"," $12,761,574,278", Titanic
+1996,Annual Stats, 324," $31,575,708"," $10,116,308,228", Independence Day
+1995,Annual Stats, 291," $35,020,946"," $9,866,938,749", Die Hard: With a Vengeance
+1994,, 251," $29,368,895"," $8,882,413,431", The Lion King
+1993,, 231," $20,912,140"," $7,926,165,719", Jurassic Park
+1992,, 219," $25,363,889"," $6,924,488,361", Aladdin
+1991,, 231," $21,512,700"," $6,176,047,332", Terminator 2: Judgment Day
+1990,, 233," $27,132,069"," $6,638,546,447", Ghost
+1989,, 230," $18,489,091"," $5,810,456,623", Indiana Jones and the Last Crusade
+1988,, 242," $15,031,250"," $4,756,374,477", Rain Man
+1987,, 249," $14,015,714"," $4,094,878,985", Fatal Attraction
+1986,, 247," $14,592,647"," $3,589,538,906", Top Gun
+1985,, 228," $13,193,333"," $3,802,509,449", Back to the Future
+1984,, 214," $15,742,857"," $3,873,988,302", Indiana Jones and the Temple of Doom
+1983,, 200," $13,091,615"," $3,160,584,615", Star Wars Ep. VI: Return of the Jedi
+1982,, 172," $12,093,548"," $3,503,899,020", ET: The Extra-Terrestrial
+1981,, 174," $12,860,000"," $2,848,040,157", Raiders of the Lost Ark
+1980,, 164," $13,493,103"," $2,892,584,840", Star Wars Ep. V: The Empire Strikes Back
+1979,, 138," $14,142,778"," $2,432,737,847", Moonraker
+1978,, 94," $13,178,846"," $2,240,707,622", Grease
+1977,, 83," $10,512,500"," $2,685,431,064", Star Wars Ep. IV: A New Hope
+1976,, 82," $4,990,909"," $1,167,880,149", Rocky
+1975,, 93," $4,662,500"," $1,227,427,870", Jaws
+1974,, 90," $5,203,333"," $1,224,844,854", Towering Inferno
+1973,, 80," $4,401,754"," $1,303,365,177", The Exorcist
+1972,, 81," $2,426,500"," $832,405,519", The Godfather
+1971,, 85," $3,705,556"," $640,658,545", Diamonds Are Forever
+1970,, 103," $9,751,304"," $746,306,318", Love Story
+1969,, 82," $8,945,455"," $657,199,666", Butch Cassidy and the Sundance Kid
+1968,, 76," $4,735,111"," $635,614,632", 2001: A Space Odyssey
+1967,, 76," $4,000,000"," $929,878,767", The Jungle Book
+1966,, 71," $4,796,300"," $423,376,130", The Bible
+1965,, 60," $8,300,000"," $820,154,487", The Sound of Music
+1964,, 58," $6,185,000"," $554,849,300", Goldfinger
+1963,, 57," $9,948,250"," $506,897,823", Cleopatra
+1962,, 63," $6,970,000"," $296,021,239", Lawrence of Arabia
+1961,, 52," $3,580,000"," $464,456,293", 101 Dalmatians
+1960,, 59," $6,800,000"," $250,782,581", Spartacus
+1959,, 44," $6,595,962"," $271,895,140", Ben-Hur
+1958,, 34," $3,000,000"," $142,825,025", South Pacific
+1957,, 50," $2,780,000"," $138,272,050", The Bridge on the River Kwai
+1956,, 53," $4,274,000"," $273,372,256", The Ten Commandments
+1955,, 43," $1,388,500"," $198,336,998", Lady and the Tramp
+1954,, 58," $3,636,667"," $235,360,759", White Christmas
+1953,, 44," $2,128,000"," $232,952,028", Peter Pan
+1952,, 30," $2,423,333"," $80,254,249", The Greatest Show on Earth
+1951,, 41," $2,958,333"," $112,679,093", Quo Vadis?
+1950,, 32," $3,334,393"," $320,010,950", Cinderella
+1949,, 38," $1,300,000"," $83,075,327", Samson and Delilah
+1948,, 41," $3,350,000"," $68,125,249", The Snake Pit
+1947,, 38," $2,000,000"," $87,473,938", Forever Amber
+1946,, 40," $3,242,200"," $243,894,768", Song of the South
+1945,, 36," $1,636,667"," $126,719,804", The Bells of St. Mary's
+1944,, 23," $3,780,500"," $38,224,606", Going My Way
+1943,, 27," $1,833,000"," $76,361,348", This is the Army
+1942,, 27," $496,000"," $322,105,954", Bambi
+1941,, 31," $1,250,000"," $34,985,352", Sergeant York
+1940,, 28," $1,964,312"," $189,711,640", Pinocchio
+1939,, 31," $2,725,667"," $437,094,831", Gone with the Wind
+1938,, 22," $1,822,000"," $13,945,659", You Can't Take It With You
+1937,, 27," $1,488,000"," $197,241,911", Snow White and the Seven Dwarfs
+1936,, 22," $1,333,333"," $16,610,742", How to Become a Detective
+1935,, 20," $609,000"," $3,202,000", Top Hat
+1934,, 21," $325,000"," $3,625,176", It Happened One Night
+1933,, 19," $437,000"," $14,281,650", King Kong
+1932,, 18,," $8,973", The Old Dark House
+1931,, 20," $558,000"," $16,980,558", Frankenstein
+1930,, 18," $4,000,000"," $11,118,204", Tom Sawyer
+1929,, 22," $379,000"," $7,087,611", The Broadway Melody
+1928,, 11,," $11,231,298", The Singing Fool
+1927,, 11," $2,000,000"," $4,229,216", The Jazz Singer
+1926,, 7,," $3,002,993", Aloma of the South Seas
+1925,, 14," $2,072,500"," $31,051,198", The Big Parade
+1924,, 6,," $18,835", Der m?de Tod
+1923,, 5,," $3,800,000", The Covered Wagon
+1922,, 4,,,
+1921,, 4,," $11,704,713", The Four Horsemen of the Apocalypse
+1920,, 4," $100,000"," $3,000,000", Over the Hill to the Poorhouse
+1919,, 1,,,
+1918,, 2,," $9,685", Godovshchina revolyutsii
+1916,, 5," $292,954"," $8,000,000"," 20,000 Leagues Under the Sea"
+1915,, 3," $110,000"," $11,000,000", The Birth of a Nation
+1902,, 1,," $45,353", Le Voyage dans la Lune
