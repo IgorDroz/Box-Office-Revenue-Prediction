@@ -380,7 +380,10 @@ def preprocess(data,train=False, save=True , cols=None):
 	data['belongs_to_collection'] = data['belongs_to_collection'].fillna('{}')
 	data['collection_id'] = data['belongs_to_collection'].apply(lambda x: parser(x)['id'] if ((x != {}) and ('id' in parser(x).keys())) else 'No Collection')
 	data['has_collection'] = data['collection_id'].apply(lambda x: 1 if x != 'No Collection' else 0)
+	data['collection_name'] = data['belongs_to_collection'].apply(lambda x: parser(x)['name'] if ((x != {}) and ('name' in parser(x).keys())) else 0)
+
 	data.drop(['belongs_to_collection'],axis=1,inplace=True)
+
 
 	# extract genres (There are 19 of them)
 	if train:
@@ -395,22 +398,26 @@ def preprocess(data,train=False, save=True , cols=None):
 		data['num_of_geners'] = data['genres'].apply(lambda x: len(x))
 		for g in [col.split('_')[-1] for col in cols if 'genre_' in col]:
 			data['genre_' + g] = data['genres'].apply(lambda x: 1 if g in x else 0)
-	data.drop(['genres'], axis=1, inplace=True)
+	# data.drop(['genres'], axis=1, inplace=True)
 
 	# extract production company details
 	if train:
-		list_of_companies = list(data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values)
-		data['all_production_companies'] = data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values
+		list_of_companies = list(
+			data['production_companies'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values)
+
+		data['all_production_companies'] = data['production_companies'].apply(
+			lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_companies'] = data['all_production_companies'].apply(lambda x: len(x))
-		top_companies = [str(m[0]) for m in Counter([i for j in list_of_companies for i in j]).most_common(15)]
+		top_companies = [m[0] for m in Counter([i for j in list_of_companies for i in j]).most_common(30)]
 		for g in top_companies:
 			data['production_company_' + g] = data['all_production_companies'].apply(lambda x: 1 if g in x else 0)
 	else:
-		data['all_production_companies'] = data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values
+		data['all_production_companies'] = data['production_companies'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_companies'] = data['all_production_companies'].apply(lambda x: len(x))
 		for g in [col.split('_')[-1] for col in cols if 'production_company_' in col]:
 			data['production_company_' + g] = data['all_production_companies'].apply(lambda x: 1 if g in x else 0)
-	data.drop(['production_companies','all_production_companies'], axis=1, inplace=True)
+	# data.drop(['production_companies','all_production_companies'], axis=1, inplace=True)
+	data.drop(['production_companies'], axis=1, inplace=True)
 
 	# production countries
 	if train:
@@ -427,69 +434,173 @@ def preprocess(data,train=False, save=True , cols=None):
 		for g in [col.split('_')[-1] for col in cols if 'production_country_' in col]:
 			data['production_country_' + g] = data['all_countries'].apply(lambda x: 1 if g in x else 0)
 
-	data.drop(['all_countries'], axis=1, inplace=True)
+	# data.drop(['production_countries', 'all_countries'], axis=1)
+	data.drop(['production_countries'], axis=1)
+
 
 	# extract features from cast
 	if train:
-		list_of_cast_ids = list(data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values)
+		list_of_cast_names = list(data['cast'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values)
 		list_of_cast_characters = list(data['cast'].apply(lambda x: [i['character'] for i in parser(x)] if x != {} else []).values)
-		data['all_cast'] = data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['all_cast'] = data['cast'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_cast'] = data['all_cast'].apply(lambda x: len(x))
-		top_cast_ids = [str(m[0]) for m in Counter([i for j in list_of_cast_ids for i in j]).most_common(15)]
-		for g in top_cast_ids:
-			data['cast_id_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		top_cast_names = [str(m[0]) for m in Counter([i for j in list_of_cast_names for i in j]).most_common(15)]
+		for g in top_cast_names:
+			data['cast_name_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		data['genders_0_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 0]))
+		data['genders_1_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 1]))
+		data['genders_2_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 2]))
 		top_cast_characters = [m[0] for m in Counter([i for j in list_of_cast_characters for i in j]).most_common(10)]
 		for g in top_cast_characters:
 			data['cast_character_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
 	else:
-		data['all_cast'] = data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['all_cast'] = data['cast'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_cast'] = data['all_cast'].apply(lambda x: len(x))
-		for g in [col.split('_')[-1] for col in cols if 'cast_id_' in col]:
-			data['cast_id_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		for g in [col.split('_')[-1] for col in cols if 'cast_name_' in col]:
+			data['cast_name_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		data['genders_0_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 0]))
+		data['genders_1_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 1]))
+		data['genders_2_cast'] = data['cast'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 2]))
 		for g in [col.split('_')[-1] for col in cols if 'cast_character_' in col]:
 			data['cast_character_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
-	data.drop(['cast','all_cast'], axis=1, inplace=True)
+	# data.drop(['cast','all_cast'], axis=1, inplace=True)
+	data.drop(['cast'], axis=1, inplace=True)
 
 
 	# extract features from crew
 	if train:
-		list_of_crew_ids = list(data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values)
+		list_of_crew_names = list(data['crew'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values)
 		list_of_crew_jobs = list(data['crew'].apply(lambda x: [i['job'] for i in parser(x)] if x != {} else []).values)
 		list_of_crew_departments  = list(data['crew'].apply(lambda x: [i['department'] for i in parser(x)] if x != {} else []).values)
 
-		data['all_crew'] = data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['all_crew'] = data['crew'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_crew'] = data['all_crew'].apply(lambda x: len(x))
-		top_crew_ids = [str(m[0]) for m in Counter([i for j in list_of_crew_ids for i in j]).most_common(15)]
-		for g in top_crew_ids:
-			data['crew_id_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
+		top_crew_names = [str(m[0]) for m in Counter([i for j in list_of_crew_names for i in j]).most_common(15)]
+		for g in top_crew_names:
+			data['crew_name_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
 		top_crew_jobs = [m[0] for m in Counter([i for j in list_of_crew_jobs for i in j]).most_common(10)]
+		data['genders_0_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 0]))
+		data['genders_1_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 1]))
+		data['genders_2_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 2]))
 		for j in top_crew_jobs:
 			data['jobs_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['job'] == j]))
 		top_crew_departments = [m[0] for m in Counter([i for j in list_of_crew_departments for i in j]).most_common(10)]
 		for j in top_crew_departments:
 			data['departments_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['department'] == j]))
 	else:
-		data['all_crew'] = data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['all_crew'] = data['crew'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
 		data['num_crew'] = data['all_crew'].apply(lambda x: len(x))
-		for g in [col.split('_')[-1] for col in cols if 'crew_id_' in col]:
-			data['crew_id_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
+		for g in [col.split('_')[-1] for col in cols if 'crew_name_' in col]:
+			data['crew_name_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
+		data['genders_0_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 0]))
+		data['genders_1_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 1]))
+		data['genders_2_crew'] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['gender'] == 2]))
 		for j in [col.split('_')[-1] for col in cols if 'jobs_' in col]:
 			data['jobs_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['job'] == j]))
 		for j in [col.split('_')[-1] for col in cols if 'departments_' in col]:
 			data['departments_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['department'] == j]))
-	data.drop(['crew','all_crew'],axis=1,inplace=True)
+	# data.drop(['crew','all_crew'],axis=1,inplace=True)
+	data.drop(['crew'],axis=1,inplace=True)
+
+	data = integration(data)
 
 
 	data['got_img'] = np.where(data['backdrop_path'].isna(),0,1)
 	data['tagline'] = np.where(data['tagline'].isna(), 0, 1)
 	data['video'] = np.where(data['video']==True,1,0)
 	data['runtime'] = data['runtime'].fillna(np.median(data['runtime'].dropna()))
-	data.drop(['backdrop_path'], axis=1, inplace=True)
+	data.drop(['backdrop_path','all_crew','all_cast','all_countries','all_production_companies','genres'], axis=1, inplace=True)
+
 
 	if save:
-		data.to_csv('./data/clean_data.csv',header=True,index=False)
+		data.to_csv('./data/clean_integrated_data.csv',header=True,index=False)
 
 	return data
+
+def integration(df):
+	#add productions information
+	production_df = pd.read_csv("./data/production.csv",encoding="ISO-8859-1")
+
+	production_df['total_revenue'] = production_df.total_revenue.str.replace(r'\D','').astype(np.int64)
+	production_df['avg_revenue_for_movie'] = production_df.apply(lambda x: x.total_revenue / x.number_of_movies, axis=1)
+
+	df['production_number_of_movies'] = 0
+	df['production_avg_rev_for_movie'] = 0
+	df['production_total_rev'] = 0
+
+	#collections
+	collectiond_df = pd.read_csv("./data/collections.csv",encoding="ISO-8859-1")
+	collectiond_df['revnue'] = collectiond_df.revnue.str.replace(r'\D','').astype(np.int64)
+	collectiond_df['avg_revenue_for_movie'] = collectiond_df.apply(lambda x: x.revnue / x.number_of_movies, axis=1)
+	collectiond_df['collection'] = collectiond_df['collection'].str.lower()
+
+	df['collection_name'] = df['collection_name'].str.lower()
+	df['collection_name'] = df['collection_name'].str.replace(r' collection', '')
+
+	df['collection_number_of_movies'] = 0
+	df['collection_avg_rev_for_movie'] = 0
+	df['collection_total_rev'] = 0
+
+	#years
+	years_df = pd.read_csv("./data/years.csv",encoding="ISO-8859-1")
+	years_df = years_df.fillna('0')
+	years_df['number_of_movies'] = years_df.number_of_movies.str.replace(r'\D','').astype(np.int64)
+	years_df['total_revenue'] = years_df.total_revenue.str.replace(r'\D','').astype(np.int64)
+	years_df['avg_revenue_for_movie'] = years_df.apply(lambda x: x.total_revenue / x.number_of_movies, axis=1)
+
+	df['year_number_of_movies'] = 0
+	df['year_avg_rev_for_movie'] = 0
+	df['year_total_rev'] = 0
+
+	#rating
+	rating_df = pd.read_csv('./data/rating.tsv', sep="\t")
+
+	df['rating_number_of_votes'] = 0
+	df['rating_avg'] = 0
+
+
+	for index, row in df.iterrows():
+		#production
+		production_companies = row['all_production_companies']
+		rows_prod = production_df.loc[production_df['production'].isin(production_companies)]
+		number_of_movies = list(rows_prod['number_of_movies'])
+		avg_rev_for_movie = list(rows_prod['avg_revenue_for_movie'])
+		production_total_rev = list(rows_prod['total_revenue'])
+		if number_of_movies:
+			df['production_number_of_movies'][index] = max(number_of_movies)
+			df['production_avg_rev_for_movie'][index] = max(avg_rev_for_movie)
+			df['production_total_rev'][index] = max(production_total_rev)
+
+		#collections
+		collection = row['collection_name']
+		rows_collection = collectiond_df.loc[collectiond_df['collection'] == collection]
+		if not rows_collection.empty:
+			df['collection_number_of_movies'][index] = list(rows_collection['number_of_movies'])[0]
+			df['collection_avg_rev_for_movie'][index] = list(rows_collection['avg_revenue_for_movie'])[0]
+			df['collection_total_rev'][index] = list(rows_collection['revnue'])[0]
+
+		#years
+		year = row['release_year']
+		rows_year = years_df.loc[years_df['year'] == year]
+		if not rows_year.empty:
+			rows_year = rows_year.fillna(0)
+			df['year_number_of_movies'][index] = list(rows_year['number_of_movies'])[0]
+			df['year_avg_rev_for_movie'][index] = list(rows_year['avg_revenue_for_movie'])[0]
+			df['year_total_rev'][index] = list(rows_year['total_revenue'])[0]
+
+		#rating
+		imdb = row['imdb_id']
+		rows_rating = rating_df.loc[rating_df['tconst'] == imdb]
+		if not rows_rating.empty:
+			rows_rating = rows_rating.fillna(0)
+			df['rating_avg'][index] = list(rows_rating['averageRating'])[0]
+			df['rating_number_of_votes'][index] = list(rows_rating['numVotes'])[0]
+
+
+	df.to_csv('./data/itegrated_data.csv', header=True, index=False)
+	return df
+	print()
+
 
 def enrich_dataset_by_dividing_x(data,x):
 	return data.explode(x).reset_index(drop=True)
@@ -528,9 +639,17 @@ def build_features(df,cat_vars,numerical_vars,group_by_x=None):
 	return df
 
 if __name__=='__main__':
-	# raw_data = pd.read_csv('data/train.tsv', sep="\t")
-	# df = preprocess(raw_data,train=True)
-	data = pd.read_csv('./data/clean_data.csv')
+	raw_data = pd.read_csv('data/train.tsv', sep="\t")
+	df = preprocess(raw_data,train=True)
+	# data = pd.read_csv('./data/clean_data.csv')
+
+	# train = pd.read_csv('./data/clean_train.csv')
+	# test = pd.read_csv('./data/clean_test.csv')
+	# preparing_data_to_expirement(train,test)
+
+	# integration(train)
+
+
 	# df_built = build_features(data)
 	# rich_dfs = [[None,'genres'],[None,'top_3_actors']]
 	# for rich_df in rich_dfs:
