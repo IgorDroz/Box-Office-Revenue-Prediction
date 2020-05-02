@@ -25,17 +25,17 @@ prediction_df.to_csv("prediction.csv", index=False, header=False)
 
 
 # ### Utility function to calculate RMSLE
-# def rmsle(y_true, y_pred):
-#     """
-#     Calculates Root Mean Squared Logarithmic Error between two input vectors
-#     :param y_true: 1-d array, ground truth vector
-#     :param y_pred: 1-d array, prediction vector
-#     :return: float, RMSLE score between two input vectors
-#     """
-#     assert y_true.shape == y_pred.shape, \
-#         ValueError("Mismatched dimensions between input vectors: {}, {}".format(y_true.shape, y_pred.shape))
-#     return np.sqrt((1/len(y_true)) * np.sum(np.power(np.log(y_true + 1) - np.log(y_pred + 1), 2)))
-#
+def rmsle(y_true, y_pred):
+    """
+    Calculates Root Mean Squared Logarithmic Error between two input vectors
+    :param y_true: 1-d array, ground truth vector
+    :param y_pred: 1-d array, prediction vector
+    :return: float, RMSLE score between two input vectors
+    """
+    assert y_true.shape == y_pred.shape, \
+        ValueError("Mismatched dimensions between input vectors: {}, {}".format(y_true.shape, y_pred.shape))
+    return np.sqrt((1/len(y_true)) * np.sum(np.power(np.log(y_true + 1) - np.log(y_pred + 1), 2)))
+
 #
 # ### Example - Calculating RMSLE
 # res = rmsle(data['revenue'], prediction_df['revenue'])

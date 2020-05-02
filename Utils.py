@@ -46,11 +46,14 @@ def shrink_memory_consumption(data,cat_vals=None,numerical_vals=None):
 
 			data[num] = pd.to_numeric(data[num], downcast='float')
 		else:
-			data[num] = pd.to_numeric(data[num], downcast='unsigned')
+			try:
+				data[num] = pd.to_numeric(data[num], downcast='unsigned')
+			except:
+				pass
 
 	return data
 
-def delete_highly_target_correlated_features(df,target,threshold=0.9):
+def delete_highly_target_correlated_features(df,target,threshold=0.8):
 	corrs = df.corr()
 	corrs = corrs.sort_values(target, ascending=False)
 	# Empty dictionary to hold correlated variables
@@ -283,7 +286,7 @@ def agg_numeric(df, group_var, df_name):
 	numeric_df[group_var] = group_ids
 
 	# Group by the specified variable and calculate the statistics
-	agg = numeric_df.groupby(group_var).agg(['count', 'mean', 'max', 'min', 'sum']).reset_index()
+	agg = numeric_df.groupby(group_var).agg(['count', 'mean', 'max', 'min']).reset_index()
 	# Need to create new column names
 	columns = [group_var]
 
@@ -361,105 +364,127 @@ def count_categorical(df, group_var, df_name,exclude = None):
 ###################### Specific Utils ##############################
 ####################################################################
 
-def preprocess(data,ohe=False, save=True):
-	data.drop(['imdb_id','poster_path','original_title','production_countries',
-			   'title','status','spoken_languages','Keywords','overview'],axis=1,inplace=True)
+def preprocess(data,train=False, save=True , cols=None):
+	data['log_revenue'] = np.log10(data['revenue']+1)
+	data['log_budget'] = np.log10(data['budget']+1)
+	data['homepage'] = np.where(data['homepage'].isna(), 0, 1)
+
+	data['release_date'] = pd.to_datetime(data['release_date'])
+	data['release_year'] = data['release_date'].dt.year
+	data['release_month'] = data['release_date'].dt.month
+	data['passed_years'] = date.today().year - data['release_year']
+	data['release_season'] = pd.cut(data['release_month'], bins=[0, 3, 6, 9, 12],
+									labels=["Winter", "Spring", "Summer", "Autumn"]).astype('category')
+
+	# extract collection features
+	data['belongs_to_collection'] = data['belongs_to_collection'].fillna('{}')
+	data['collection_id'] = data['belongs_to_collection'].apply(lambda x: parser(x)['id'] if ((x != {}) and ('id' in parser(x).keys())) else 'No Collection')
+	data['has_collection'] = data['collection_id'].apply(lambda x: 1 if x != 'No Collection' else 0)
+	data.drop(['belongs_to_collection'],axis=1,inplace=True)
+
+	# extract genres (There are 19 of them)
+	if train:
+		list_of_genres = list(data['genres'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else ['Other']).values)
+		set_of_genres = set([m for m in Counter([i for j in list_of_genres for i in j])])
+		data['genres'] = data['genres'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else ['Other']).values
+		data['num_of_geners'] = data['genres'].apply(lambda x: len(x))
+		for g in set_of_genres:
+			data['genre_' + g] = data['genres'].apply(lambda x: 1 if g in x else 0)
+	else:
+		data['genres'] = data['genres'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else ['Other']).values
+		data['num_of_geners'] = data['genres'].apply(lambda x: len(x))
+		for g in [col.split('_')[-1] for col in cols if 'genre_' in col]:
+			data['genre_' + g] = data['genres'].apply(lambda x: 1 if g in x else 0)
+	data.drop(['genres'], axis=1, inplace=True)
+
+	# extract production company details
+	if train:
+		list_of_companies = list(data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values)
+		data['all_production_companies'] = data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values
+		data['num_companies'] = data['all_production_companies'].apply(lambda x: len(x))
+		top_companies = [str(m[0]) for m in Counter([i for j in list_of_companies for i in j]).most_common(15)]
+		for g in top_companies:
+			data['production_company_' + g] = data['all_production_companies'].apply(lambda x: 1 if g in x else 0)
+	else:
+		data['all_production_companies'] = data['production_companies'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else ['No id']).values
+		data['num_companies'] = data['all_production_companies'].apply(lambda x: len(x))
+		for g in [col.split('_')[-1] for col in cols if 'production_company_' in col]:
+			data['production_company_' + g] = data['all_production_companies'].apply(lambda x: 1 if g in x else 0)
+	data.drop(['production_companies','all_production_companies'], axis=1, inplace=True)
+
+	# production countries
+	if train:
+		list_of_countries = list(data['production_countries'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values)
+
+		data['all_countries'] = data['production_countries'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
+		data['num_countries'] = data['all_countries'].apply(lambda x: len(x))
+		top_countries = [m[0] for m in Counter([i for j in list_of_countries for i in j]).most_common(15)]
+		for g in top_countries:
+			data['production_country_' + g] = data['all_countries'].apply(lambda x: 1 if g in x else 0)
+	else:
+		data['all_countries'] = data['production_countries'].apply(lambda x: [i['name'] for i in parser(x)] if x != {} else []).values
+		data['num_countries'] = data['all_countries'].apply(lambda x: len(x))
+		for g in [col.split('_')[-1] for col in cols if 'production_country_' in col]:
+			data['production_country_' + g] = data['all_countries'].apply(lambda x: 1 if g in x else 0)
+
+	data.drop(['all_countries'], axis=1, inplace=True)
+
+	# extract features from cast
+	if train:
+		list_of_cast_ids = list(data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values)
+		list_of_cast_characters = list(data['cast'].apply(lambda x: [i['character'] for i in parser(x)] if x != {} else []).values)
+		data['all_cast'] = data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['num_cast'] = data['all_cast'].apply(lambda x: len(x))
+		top_cast_ids = [str(m[0]) for m in Counter([i for j in list_of_cast_ids for i in j]).most_common(15)]
+		for g in top_cast_ids:
+			data['cast_id_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		top_cast_characters = [m[0] for m in Counter([i for j in list_of_cast_characters for i in j]).most_common(10)]
+		for g in top_cast_characters:
+			data['cast_character_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+	else:
+		data['all_cast'] = data['cast'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['num_cast'] = data['all_cast'].apply(lambda x: len(x))
+		for g in [col.split('_')[-1] for col in cols if 'cast_id_' in col]:
+			data['cast_id_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+		for g in [col.split('_')[-1] for col in cols if 'cast_character_' in col]:
+			data['cast_character_' + g] = data['cast'].apply(lambda x: 1 if g in str(x) else 0)
+	data.drop(['cast','all_cast'], axis=1, inplace=True)
+
+
+	# extract features from crew
+	if train:
+		list_of_crew_ids = list(data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values)
+		list_of_crew_jobs = list(data['crew'].apply(lambda x: [i['job'] for i in parser(x)] if x != {} else []).values)
+		list_of_crew_departments  = list(data['crew'].apply(lambda x: [i['department'] for i in parser(x)] if x != {} else []).values)
+
+		data['all_crew'] = data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['num_crew'] = data['all_crew'].apply(lambda x: len(x))
+		top_crew_ids = [str(m[0]) for m in Counter([i for j in list_of_crew_ids for i in j]).most_common(15)]
+		for g in top_crew_ids:
+			data['crew_id_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
+		top_crew_jobs = [m[0] for m in Counter([i for j in list_of_crew_jobs for i in j]).most_common(10)]
+		for j in top_crew_jobs:
+			data['jobs_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['job'] == j]))
+		top_crew_departments = [m[0] for m in Counter([i for j in list_of_crew_departments for i in j]).most_common(10)]
+		for j in top_crew_departments:
+			data['departments_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['department'] == j]))
+	else:
+		data['all_crew'] = data['crew'].apply(lambda x: [i['id'] for i in parser(x)] if x != {} else []).values
+		data['num_crew'] = data['all_crew'].apply(lambda x: len(x))
+		for g in [col.split('_')[-1] for col in cols if 'crew_id_' in col]:
+			data['crew_id_' + g] = data['crew'].apply(lambda x: 1 if g in str(x) else 0)
+		for j in [col.split('_')[-1] for col in cols if 'jobs_' in col]:
+			data['jobs_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['job'] == j]))
+		for j in [col.split('_')[-1] for col in cols if 'departments_' in col]:
+			data['departments_' + j] = data['crew'].apply(lambda x: sum([1 for i in parser(x) if i['department'] == j]))
+	data.drop(['crew','all_crew'],axis=1,inplace=True)
+
 
 	data['got_img'] = np.where(data['backdrop_path'].isna(),0,1)
 	data['tagline'] = np.where(data['tagline'].isna(), 0, 1)
-	data['homepage'] = np.where(data['homepage'].isna(),0,1)
 	data['video'] = np.where(data['video']==True,1,0)
-	data['budget'] = np.where(data['budget'] == 0, 1, data['budget'])
-	data['vote_count'] = np.where(data['vote_count'] == 0, 1, data['vote_count'])
 	data['runtime'] = data['runtime'].fillna(np.median(data['runtime'].dropna()))
 	data.drop(['backdrop_path'], axis=1, inplace=True)
-
-	# extract collection id
-	data['belongs_to_collection'] = data['belongs_to_collection'].fillna('{}')
-	uniqueAttr = set()
-	data['collection_id'] = 'No Collection'
-	for idx,cell in enumerate(data['belongs_to_collection']):
-		cell = parser(cell)
-		uniqueAttr = uniqueAttr.union(set(cell.keys()))
-		for key,val in cell.items():
-			if key == 'id':
-				data['collection_id'].loc[idx] = str(val)
-	data.drop(['belongs_to_collection'],axis=1,inplace=True)
-
-
-	# extract genres (There are 19 of them)
-	data['genres'] = np.where(data['genres']=='[]','[{\'name\' : \'Other\'}]',data['genres'])
-	for idx,cell in enumerate(data['genres']):
-		cell = parser(cell)
-		combined_genre =[]
-		for genre in cell:
-			combined_genre.append(genre['name'])
-			if ohe:
-				if 'genre_' + genre['name'] not in data.columns:
-					data['genre_' + genre['name']] = 0
-				data['genre_' + genre['name']].loc[idx] = 1
-
-		data['genres'].loc[idx] = combined_genre
-	# data.drop(['genres'],axis=1,inplace=True)
-
-	# extract production company details
-	data['production_company_id'] = 'No id'
-	data['production_company_country'] = 'No country'
-	data['production_companies_involved'] = 1
-	for idx,cell in enumerate(data['production_companies']):
-		cell = parser(cell)
-		data['production_companies_involved'].loc[idx] = len(cell)
-		for element in cell:
-			for key,val in element.items():
-				if key=='id':
-					data['production_company_id'].loc[idx] = str(val)
-				elif key=='origin_country':
-					data['production_company_country'].loc[idx] = val if val!='' else 'No country'
-				break
-	data.drop(['production_companies'],axis=1,inplace=True)
-
-	# extract top 3 actors
-	data['top_3_actors'] = '[\'Other\']'
-	data['actors_involved'] = 1
-	data['cast'] = np.where(data['cast'] == '[]', '[{\'id\' : \'Other\'}]', data['cast'])
-	for idx,cell in enumerate(data['cast']):
-		cell = parser(cell)
-		data['actors_involved'].loc[idx] = len(cell)
-		combined_actors = []
-		counter = 0
-		for element in cell:
-			if counter==3:
-				break
-			combined_actors.append(str(element['id']))
-			counter+=1
-		data['top_3_actors'].loc[idx] = combined_actors
-	data.drop(['cast'],axis=1,inplace=True)
-
-	# extract director and producer
-	data['director_id'] = 'No director'
-	data['producer_id'] = 'No producer'
-	data['crew_involved'] = 1
-	for idx,cell in enumerate(data['crew']):
-		cell = parser(cell)
-		# data['crew_involved'].loc[idx] = len(cell)
-		crew_set =set()
-		producer=0
-		director=0
-		for element in cell:
-			if producer and director:
-				if director<1 and 'director' in element['job'].lower():
-					data['director_id'].loc[idx] = str(element['id'])
-					director+=1
-
-				if producer<1 and 'producer' in element['job'].lower():
-					data['producer_id'].loc[idx] = str(element['id'])
-					producer+=1
-			crew_set.add(str(element['id']))
-		data['crew_involved'].loc[idx] = len(crew_set)
-
-	data.drop(['crew'],axis=1,inplace=True)
-
-	data['avg_salary']=data['budget']/(data['crew_involved']+data['actors_involved'])
 
 	if save:
 		data.to_csv('./data/clean_data.csv',header=True,index=False)
@@ -484,29 +509,15 @@ def build_statistics_features_on_categorical_vars(df,group_by_variables,original
 
 def build_statistics_features(df,group_by_variables,original_features,exclude=None):
 	df = build_statistics_features_on_numerical_vars(df, group_by_variables, original_features)
-	return build_statistics_features_on_categorical_vars(df, group_by_variables, original_features ,exclude)
-	# return df
+	# return build_statistics_features_on_categorical_vars(df, group_by_variables, original_features ,exclude)
+	return df
 
-def build_features(df,group_by_x=None):
-	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id', 'tagline',
-				'got_img', 'producer_id', 'collection_id', 'production_company_id', 'genres', 'top_3_actors']
-	numerical_vars = ['budget', 'popularity', 'runtime','revenue', 'vote_average', 'vote_count', 'crew_involved',
-					  'actors_involved', 'production_companies_involved','avg_salary']
-
+def build_features(df,cat_vars,numerical_vars,group_by_x=None):
 	df = shrink_memory_consumption(df,cat_vars,numerical_vars)
-
-	# date related features
-	df['release_date'] = pd.to_datetime(df['release_date'])
-	df['release_year'] = df['release_date'].dt.year
-	df['release_month'] = df['release_date'].dt.month
-	df['passed_years'] = date.today().year - df['release_year']
-	df['release_season'] = pd.cut(df['release_month'], bins=[0, 3, 6, 9, 12], labels=["Winter", "Spring", "Summer","Autumn"]).astype('category')
-	df.drop(['release_date','release_month'], axis=1)
 
 	# build features out of statistics on numerical variable
 	original_features = list(df.columns)
-	original_features.remove('revenue')
-	group_by_variables = ['release_season','got_img','collection_id','production_company_id','director_id','producer_id']
+	group_by_variables = ['release_season','collection_id','original_language','jobs_Executive Producer','jobs_Art Direction']
 	if group_by_x:
 		group_by_variables=[group_by_x]
 
@@ -518,18 +529,18 @@ def build_features(df,group_by_x=None):
 
 if __name__=='__main__':
 	# raw_data = pd.read_csv('data/train.tsv', sep="\t")
-	# df = preprocess(raw_data)
-	df = pd.read_csv('./data/clean_data.csv')
-	df_built = build_features(df)
-	rich_dfs = [[None,'genres'],[None,'top_3_actors']]
-	for rich_df in rich_dfs:
-		rich_df[0] = enrich_dataset_by_dividing_x(df,rich_df[1])
-		rich_df[0].to_csv('./data/rich_df_'+rich_df[1]+'.csv',index=False,header=True)
-		rich_df[0] = build_features(rich_df[0],group_by_x=rich_df[1])
-		rich_df[0] = rich_df[0].groupby('id').agg(['mean'])
-		relevant_columns = [idx for idx,col in enumerate(rich_df[0].columns) if rich_df[1] in col[0]]
-		rich_df[0] = rich_df[0].iloc[:,relevant_columns]
-		df_built = df_built.merge(rich_df[0], on='id', how='left')
-	df,cols_to_remove = delete_highly_target_correlated_features(df_built,'revenue')
-	print(df.shape)
-	_=0
+	# df = preprocess(raw_data,train=True)
+	data = pd.read_csv('./data/clean_data.csv')
+	# df_built = build_features(data)
+	# rich_dfs = [[None,'genres'],[None,'top_3_actors']]
+	# for rich_df in rich_dfs:
+	# 	rich_df[0] = enrich_dataset_by_dividing_x(data, rich_df[1])
+	# 	rich_df[0].to_csv('./data/rich_df_'+rich_df[1]+'.csv',index=False,header=True)
+	# 	rich_df[0] = build_features(rich_df[0],group_by_x=rich_df[1])
+	# 	rich_df[0] = rich_df[0].groupby('id').agg(['mean'])
+	# 	relevant_columns = [idx for idx,col in enumerate(rich_df[0].columns) if rich_df[1] in col[0]]
+	# 	rich_df[0] = rich_df[0].iloc[:,relevant_columns]
+	# 	df_built = df_built.merge(rich_df[0], on='id', how='left')
+	# data, cols_to_remove = delete_highly_target_correlated_features(df_built, 'revenue')
+	# print(data.shape)
+	# _=0
