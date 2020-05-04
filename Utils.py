@@ -53,7 +53,7 @@ def shrink_memory_consumption(data,cat_vals=None,numerical_vals=None):
 
 	return data
 
-def delete_highly_target_correlated_features(df,target,threshold=0.8):
+def delete_highly_target_correlated_features(df,target,threshold=0.9):
 	corrs = df.corr()
 	corrs = corrs.sort_values(target, ascending=False)
 	# Empty dictionary to hold correlated variables
@@ -513,7 +513,7 @@ def preprocess(data,train=False, save=True , cols=None):
 
 
 	if save:
-		data.to_csv('./data/clean_integrated_data.csv',header=True,index=False)
+		data.to_csv('./data/clean_data.csv',header=True,index=False)
 
 	return data
 

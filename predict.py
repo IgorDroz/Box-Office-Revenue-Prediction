@@ -1,6 +1,8 @@
 import argparse
 import numpy as np
 import pandas as pd
+from Experiments import predict
+import pickle
 
 
 # Parsing script arguments
@@ -12,12 +14,11 @@ args = parser.parse_args()
 data = pd.read_csv(args.tsv_path, sep="\t")
 
 #####
-# TODO - your prediction code here
-
-# Example:
 prediction_df = pd.DataFrame(columns=['id', 'revenue'])
 prediction_df['id'] = data['id']
-prediction_df['revenue'] = data['revenue'].mean()
+results = pickle.load(open('./models.pkl', 'rb'))
+test_df = pd.read_csv('data/test.tsv', sep="\t")
+prediction_df['revenue'] = predict(test_df,'revenue',results)
 ####
 
 # TODO - How to export prediction results
@@ -26,19 +27,19 @@ prediction_df.to_csv("prediction.csv", index=False, header=False)
 
 # ### Utility function to calculate RMSLE
 def rmsle(y_true, y_pred):
-    """
-    Calculates Root Mean Squared Logarithmic Error between two input vectors
-    :param y_true: 1-d array, ground truth vector
-    :param y_pred: 1-d array, prediction vector
-    :return: float, RMSLE score between two input vectors
-    """
-    assert y_true.shape == y_pred.shape, \
-        ValueError("Mismatched dimensions between input vectors: {}, {}".format(y_true.shape, y_pred.shape))
-    return np.sqrt((1/len(y_true)) * np.sum(np.power(np.log(y_true + 1) - np.log(y_pred + 1), 2)))
+	"""
+	Calculates Root Mean Squared Logarithmic Error between two input vectors
+	:param y_true: 1-d array, ground truth vector
+	:param y_pred: 1-d array, prediction vector
+	:return: float, RMSLE score between two input vectors
+	"""
+	assert y_true.shape == y_pred.shape, \
+		ValueError("Mismatched dimensions between input vectors: {}, {}".format(y_true.shape, y_pred.shape))
+	return np.sqrt((1/len(y_true)) * np.sum(np.power(np.log(y_true + 1) - np.log(y_pred + 1), 2)))
 
-#
-# ### Example - Calculating RMSLE
-# res = rmsle(data['revenue'], prediction_df['revenue'])
-# print("RMSLE is: {:.6f}".format(res))
+
+### Example - Calculating RMSLE
+res = rmsle(data['revenue'], prediction_df['revenue'])
+print("RMSLE is: {:.6f}".format(res))
 
 
