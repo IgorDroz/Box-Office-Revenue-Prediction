@@ -55,12 +55,12 @@ def new_features(data):
 	for idx in data.index:
 		data['budget'].loc[idx] = data['budget'].loc[idx]* secret_weapon.loc[data['release_year'].loc[idx], 'amount']
 
-	data['avg_salary']=data['budget']/(data['num_crew']+data['num_cast'])
-	data['budget_to_popularity'] = data['budget'] / data['popularity']
-	data['budget_to_runtime'] = data['budget'] / data['runtime']
+	data['avg_salary']=data['budget']/(data['num_crew']+data['num_cast']+1)
+	data['budget_to_popularity'] = data['budget'] / (data['popularity']+1)
+	data['budget_to_runtime'] = data['budget'] / (data['runtime']+1)
 	data['runtime_to_mean_year'] = data['runtime'] / data.groupby("release_year")["runtime"].transform('mean')
 	data['popularity_to_mean_year'] = data['popularity'] / data.groupby("release_year")["popularity"].transform('mean')
-	data['budget_to_mean_year'] = data['budget'] / data.groupby("release_year")["budget"].transform('mean')
+	data['budget_to_mean_year'] = data['budget'] / (data.groupby("release_year")["budget"].transform('mean')+1)
 
 	return data
 
@@ -206,51 +206,54 @@ def experiment_1(data_orig,target,model_name):
 
 
 
-def experiment_2(df,target):
-	features_imp = 'empty'
+def experiment_2(data_orig,target):
+	print('--- starting training ----')
+	data_orig = data_orig.drop(['imdb_id', 'poster_path', 'release_date', 'status', 'log_revenue',
+								'production_countries','spoken_languages','Keywords'], axis=1)
 
-	for column in list(df.select_dtypes('number').columns):
-		if abs(df[column].skew()) > 1.0:
-			df[column] = df[column].apply(lambda x: np.log10(x + 1))
+	texts = data_orig[['title', 'overview', 'original_title']]
 
-	labels = df[target]
-	df.drop(['release_date', 'release_month',target,'id'], axis=1,inplace=True)
+	for col in ['title', 'overview', 'original_title']:
+		data_orig['len_' + col] = data_orig[col].fillna('').apply(lambda x: len(str(x)))
+		data_orig['words_' + col] = data_orig[col].fillna('').apply(lambda x: len(str(x.split(' '))))
+		data_orig = data_orig.drop(col, axis=1)
 
-	cat_vars = ['homepage', 'original_language', 'video', 'production_company_country', 'director_id', 'tagline',
-				'got_img',
-				'producer_id', 'collection_id', 'production_company_id', 'top_3_actors', 'release_season']
-	numerical_vars = ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count', 'crew_involved',
-					  'actors_involved', 'production_companies_involved', 'avg_salary', 'release_year',
-					  'vote_count_avg', 'passed_years']
-	features = shrink_memory_consumption(df,cat_vars,numerical_vars)
-	if isinstance(features_imp,str):
-		features_imp = np.zeros((features.shape[1],))
+	X = data_orig.drop(['id', target], axis=1)
+	y = np.log10(data_orig[target]+1)
 
-	features,valid_features,labels,valid_labels = train_test_split(features,labels,test_size=0.15,random_state=314)
+	oof_texts = []
+	ridge_models = []
+	for col in texts.columns:
+		vectorizer = TfidfVectorizer(
+			sublinear_tf=True,
+			analyzer='word',
+			token_pattern=r'\w{1,}',
+			ngram_range=(1, 2),
+			min_df=10
+		)
+		oof_text = vectorizer.fit(list(texts[col].fillna('')) + list(texts[col].fillna('')))
+		train_col_text = vectorizer.transform(texts[col].fillna(''))
+		model = linear_model.Ridge(0.1)
+		ridge_model = model.fit(train_col_text, y)
+		ridge_models.append(ridge_model)
+		oof_texts.append(oof_text)
+		X[col + '_oof'] = model.predict(train_col_text)
 
-	#
-	# model = CatBoostRegressor()
-	# parameters = {'depth': [8, 10, 12],
-	# 				'learning_rate': [0.01, 0.05, 0.005],
-	# 				'iterations': [ 150, 100, 200],
-	# 				'l2_leaf_reg' : [0.1],
-	# 				'loss_function' : ['RMSE'],
-	# 				'eval_metric' : ['RMSE'],
-	# 				'cat_features' : [features.select_dtypes('category').columns],
-	# 				'random_strength' : [0.001],
-	# 				'bootstrap_type' : ['Bayesian'],
-	# 				'bagging_temperature' : [1],
-	# 				'leaf_estimation_method' : ['Newton'],
-	# 				'leaf_estimation_iterations' : [2],
-	# 				'boosting_type' : ['Ordered'],
-	# 				'feature_border_type' : ['Median'],
-	# 				'random_seed' : [7]
-	# 			  }
-	# grid = GridSearchCV(estimator=model, param_grid=parameters, cv=7, n_jobs=-1)
+	numeric_cols =  ['budget', 'popularity', 'runtime', 'vote_average', 'vote_count','num_crew',
+						  'num_cast','num_companies','avg_salary', 'release_year',
+						  'vote_count_avg', 'passed_years','budget_to_popularity','budget_to_runtime','runtime_to_mean_year',
+					 'popularity_to_mean_year','budget_to_mean_year'] + [col for col in X.columns if '_oof' in col or 'len_' in col
+																		 or 'words_' in col or 'log_' in col]
+	cat_cols = list(set(X.columns)-set(numeric_cols))
+	X = new_features(X)
+	X = build_features(X,cat_cols,numeric_cols)
 
-	fit_params = {"early_stopping_rounds": 30,
+	X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2)
+
+	#building & blending
+	fit_params = {"early_stopping_rounds": 200,
 				  "eval_metric": 'rmse',
-				  "eval_set": [(valid_features, valid_labels)],
+				  "eval_set": [(X_test, y_test)],
 				  'eval_names': ['valid'],
 				  # 'callbacks': [lgb.reset_parameter(learning_rate=learning_rate_010_decay_power_099)],
 				  'categorical_feature': 'auto'}
@@ -265,7 +268,7 @@ def experiment_2(df,target):
 				  'reg_alpha': [0, 1e-1, 1, 2, 5, 7, 10],
 				  'reg_lambda': [0, 1e-1, 1, 5, 10, 20]}
 
-	clf = lgb.LGBMRegressor(max_depth=-1, random_state=314, silent=True,objective='regression', n_jobs=4, n_estimators=1000)
+	clf = lgb.LGBMRegressor(max_depth=-1, random_state=314, silent=True,objective='regression', n_jobs=4, n_estimators=5000)
 	grid = RandomizedSearchCV(
 		estimator=clf, param_distributions=param_test,
 		scoring='neg_root_mean_squared_error',
@@ -274,7 +277,7 @@ def experiment_2(df,target):
 		random_state=314,
 		verbose=True)
 
-	grid.fit(features,labels,**fit_params)
+	grid.fit(X_train,y_train,**fit_params)
 
 	# Results from Grid Search
 	print("\n========================================================")
@@ -293,10 +296,13 @@ def experiment_2(df,target):
 	print("\n ========================================================")
 
 	features_imp = grid.best_estimator_.feature_importances_
-	predictors = [x for x in features.columns]
+	predictors = [x for x in X_train.columns]
 
 	plot_df = pd.DataFrame([[i[0], i[1]] for i in zip(features_imp, predictors)], columns=['importance', 'feature'])
 	plot_feature_importances(plot_df)
+
+
+
 
 def experiment_3(data_orig,target,model_name,plot=False):
 	data_orig = data_orig.drop(['imdb_id', 'poster_path', 'release_date', 'status', 'log_revenue',
@@ -423,12 +429,17 @@ def train(data_orig,target,model_name,plot=False):
 	cat_cols = list(set(X.columns)-set(numeric_cols))
 	X = new_features(X)
 	X = build_features(X,cat_cols,numeric_cols)
+	X[target] = data_orig[target]
+	print(X.shape)
+	X,_ = delete_highly_target_correlated_features(X,target,threshold=0.8)
+	X.drop([target],axis=1,inplace=True)
+	print(X.shape)
 
 	#building & blending
 
 	if model_name=='LGBM':
-		params = {'num_leaves': 30,
-				  'min_data_in_leaf': 20,
+		params = {'num_leaves': 36,
+				  'min_child_samples': 22,
 				  'objective': 'regression',
 				  'max_depth': 9,
 				  'learning_rate': 0.01,
@@ -444,7 +455,6 @@ def train(data_orig,target,model_name,plot=False):
 
 	elif model_name == 'CATBOOST':
 		cat_params = {'learning_rate': 0.05,
-					  'depth': 10,
 					  'l2_leaf_reg': 0.1,
 					  'loss_function': 'RMSE',
 					  'colsample_bylevel': 0.8,
@@ -456,6 +466,12 @@ def train(data_orig,target,model_name,plot=False):
 					  'allow_writing_files': False}
 		model = CatBoostRegressor(iterations=200, eval_metric='RMSE', **cat_params)
 		model = model.fit(X,y, use_best_model=True, verbose=False)
+
+	# features_imp = model.feature_importances_
+	# predictors = [x for x in X.columns]
+	#
+	# plot_df = pd.DataFrame([[i[0], i[1]] for i in zip(features_imp, predictors)], columns=['importance', 'feature'])
+	# plot_feature_importances(plot_df)
 
 	print('--- done training ----')
 	return (model,ridge_models,oof_texts,data_orig.columns,X)
@@ -503,13 +519,13 @@ def plot_feature_importances(df):
 	ax = plt.subplot()
 
 	# Need to reverse the index to plot most important on top
-	ax.barh(list(reversed(list(df.index[:15]))),
-			df['importance_normalized'].head(15),
+	ax.barh(list(reversed(list(df.index[:20]))),
+			df['importance_normalized'].head(20),
 			align='center', edgecolor='k')
 
 	# Set the yticks and labels
-	ax.set_yticks(list(reversed(list(df.index[:15]))))
-	ax.set_yticklabels(df['feature'].head(15))
+	ax.set_yticks(list(reversed(list(df.index[:20]))))
+	ax.set_yticklabels(df['feature'].head(20))
 
 	# Plot labeling
 	plt.xlabel('Normalized Importance');
@@ -551,6 +567,8 @@ def predict(data_orig,target,models):
 	X = new_features(X)
 	X = build_features(X,cat_cols,numeric_cols)
 	train_features = models[-1]
+	cols_to_drop = [col for col in X.columns if col not in train_features.columns]
+	X.drop(cols_to_drop,inplace=True,axis=1)
 
 	group_by_variables = ['release_season','collection_id','original_language','jobs_Executive Producer','jobs_Art Direction']
 	for idx in X.index:
@@ -578,8 +596,8 @@ def rmsle(y_true, y_pred):
 	return np.sqrt((1/len(y_true)) * np.sum(np.power(np.log(y_true + 1) - np.log(y_pred + 1), 2)))
 
 if __name__=='__main__':
-	raw_data = pd.read_csv('data/train.tsv', sep="\t")
-	df = preprocess(raw_data,train=True)
+	# raw_data = pd.read_csv('data/train.tsv', sep="\t")
+	# df = preprocess(raw_data,train=True)
 	df = pd.read_csv('./data/clean_data.csv')
 
 	# models = ['LGBM','CATBOOST']
